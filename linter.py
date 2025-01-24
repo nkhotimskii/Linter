@@ -3,6 +3,7 @@ import importlib.util
 import logging
 from logging import LogRecord
 import os
+from pathlib import Path
 import re
 import sys
 
@@ -44,14 +45,14 @@ parser.add_argument('filepath')
 args = parser.parse_args()
 
 
-def open_file(filepath: str) -> str:
+def open_file(filepath: str | Path) -> str:
     '''
     Возвращает содержимое файла
     '''
-    if not filepath.endswith('.py'):
+    if not str(filepath).endswith('.py'):
         logger.warning(f'Не ".py" расширение файла: {filepath}')
     try:
-        with open(filepath, 'r') as file:
+        with open(filepath, 'r', encoding='utf-8') as file:
             contents = file.read()
             return contents
     except FileNotFoundError:
@@ -66,10 +67,13 @@ def get_file_lines(contents: str) -> list:
     return contents.splitlines()
 
 
-def get_import_lines_with_indices(file_lines: list) -> tuple:
+def get_import_lines_with_indices_and_comments(file_lines: list) -> tuple:
     '''
-    Возвращает список словарей, содержащих строки раздела импортов 
-    и их номера в изначальном файле, а также начальный и конечный индексы 
+    Возвращает список словарей, где каждый словарь содержит строку импорта, 
+    соответствующие этой строке комментарии (кроме строчных комментариев), 
+    все комментарии выше строки импорта до предыдущего импорта считаются 
+    комментариями нижестоящего импорта. Также словарь содержит номер строки 
+    импорта в изначальном файле. Возвращает начальный и конечный индексы 
     раздела импортов в списке строк содержимого
     '''
     import_lines = []
@@ -82,6 +86,7 @@ def get_import_lines_with_indices(file_lines: list) -> tuple:
     for idx, line in enumerate(file_lines):
         if not line.startswith('import') and \
             not line.startswith('from') and \
+            not line.strip().startswith('#') and \
             not line.strip() == '':
             other_section_start_index = idx
             break
@@ -89,16 +94,34 @@ def get_import_lines_with_indices(file_lines: list) -> tuple:
         reversed(file_lines[:other_section_start_index])
     ):
         if line.strip() != '':
-            end_index = other_section_start_index - idx - 1
+            end_index = other_section_start_index - idx
             break
-    # Создаём список словарей с импортами и номерами строк этих импортов   
+    # Выделяем раздел импортов
     import_section = file_lines[start_index:end_index]
+
+    # Создаём список словарей с импортами и номерами строк этих импортов, 
+    # а также комментариями к этим импортам
+    def get_full_line_commentaries(line_index: int) -> list:
+        commentaries = []
+        count = 0
+        while True:
+            count += 1
+            line_above_import = import_section[line_index - count].strip()
+            if line_above_import.startswith('#'):
+                commentaries.append(line_above_import)
+            elif line_above_import == '':
+                continue
+            else:
+                break
+        return commentaries[::-1]
+        
     import_lines = [
         {
             'import_line': line,
-            'line_index': idx + 1
+            'line_index': idx + 1,
+            'full_line_commentaries': get_full_line_commentaries(idx)
         } for idx, line in enumerate(import_section) \
-            if line.strip() != ''
+            if line.strip() != '' and not line.strip().startswith('#')
     ]
     return import_lines, start_index, end_index
 
@@ -109,7 +132,7 @@ def update_import_lines(import_lines: list) -> list:
     обновляет раздел импортов, если повторений нет
     '''
     # Переводим строки раздела импортов в удобный формат
-    imports_dicts = _get_imports_dicts(import_lines)
+    imports_dicts = _get_imports_dicts_detailed(import_lines)
     # Проверяем наличие дубликатов
     _check_duplicates(imports_dicts)
     # Меняем порядок импортов для его соответствия PEP8
@@ -137,23 +160,29 @@ def update_file(filepath: str, new_file_lines: list) -> None:
     Обновляет заданный файл
     '''
     new_file_lines_str = '\n'.join(new_file_lines)
-    with open(filepath, 'w') as file:
+    with open(filepath, 'w', encoding='utf-8') as file:
         file.write(new_file_lines_str)
 
 
-def _get_imports_dicts(import_lines_with_indices: list) -> list:
+def _get_imports_dicts_detailed(
+    import_lines_with_indices_and_comments: list
+) -> list:
     '''
-    Переводит список словарей со строками раздела импортов и их номерами  
-    в формат списка словарей с подробной информацией об этих строках
-
-    При наличии строк, содержащих одновременную загрузку нескольких 
-    верхнеуровневых модулей, разбивает такие строки на несколько словарей
+    Переводит список словарей с импортами, номерами строк этих импортов и 
+    комментариями в формат списка словарей, где каждый словарь содержит 
+    изначальную строку импорта, ее номер в файле, сгенерированную строку 
+    импорта (когда исходная строка импорта содержит одновременную загрузку 
+    нескольких верхнеуровневых модулей, она разбивается на несколько строк, а 
+    каждый сгенерированный словарь соответствует одной строке импорта), 
+    название выгружаемого верхнеуровневого модуля, список словарей 
+    импортируемых элементов (элемент и псевдоним, если таковой есть)
     '''
-    imports_dicts = []
+    imports_dicts_detailed = []
     regex_pattern = _get_import_string_regex()
-    for import_line_with_index in import_lines_with_indices:
-        line = import_line_with_index['import_line']
-        line_index = import_line_with_index['line_index']
+    for idx, import_line_with_index_and_comment \
+        in enumerate(import_lines_with_indices_and_comments):
+        line = import_line_with_index_and_comment['import_line']
+        line_index = import_line_with_index_and_comment['line_index']
         import_string_match = re.match(
             regex_pattern,
             line
@@ -163,6 +192,8 @@ def _get_imports_dicts(import_lines_with_indices: list) -> list:
             module_alias = import_string_match.group('module_alias')
             another_module = import_string_match.group('another_module')
             module_var2 = import_string_match.group('module_var2')
+            full_line_commentaries = \
+                import_line_with_index_and_comment['full_line_commentaries']
             if another_module:
                 modules_str = line.split('import ')[1]
                 modules_with_aliases = modules_str.split(', ')
@@ -176,11 +207,13 @@ def _get_imports_dicts(import_lines_with_indices: list) -> list:
                         import_alias = None
                     module_name = import_full_name.split('.')[0]
                     import_name = import_full_name.split('.')[-1]
-                    imports_dicts.append({
+                    imports_dicts_detailed.append({
                         'initial_string': line,
                         'initial_string_index': line_index,
                         'import_string': new_line,
                         'module_name': module_name,
+                        'full_line_commentaries': full_line_commentaries \
+                            if idx == 0 else None,
                         'import': [
                             {
                                 'import_name': import_name,
@@ -216,11 +249,12 @@ def _get_imports_dicts(import_lines_with_indices: list) -> list:
                             'import_alias': import_alias
                         }
                     )
-            imports_dicts.append({
+            imports_dicts_detailed.append({
                 'initial_string': line,
                 'initial_string_index': line_index,
                 'import_string': line,
                 'module_name': module_name,
+                'full_line_commentaries': full_line_commentaries,
                 'import': imported
             })
         else:
@@ -229,7 +263,7 @@ def _get_imports_dicts(import_lines_with_indices: list) -> list:
                 'Исправьте ошибку и перезапустите скрипт'
             )
             sys.exit()
-    return imports_dicts
+    return imports_dicts_detailed
 
 
 def _get_import_string_regex() -> str:
@@ -259,7 +293,7 @@ def _check_duplicates(imports_dicts: list) -> None:
             logger.error(
                 'Найден повторный импорт в строке '
                 f'{import_dict['initial_string_index']}: '
-                f'"{import_dict["initial_string"]}", '
+                f'"{import_dict['initial_string']}", '
                 'исправьте проблему и перезапустите скрипт'
             )
             sys.exit()
@@ -278,7 +312,7 @@ def _check_duplicates(imports_dicts: list) -> None:
                 logger.error(
                     'Найден повторный импорт в строке '
                     f'{import_dict['initial_string_index']}: '
-                    f'"{import_dict["initial_string"]}", '
+                    f'"{import_dict['initial_string']}", '
                     'исправьте проблему и перезапустите скрипт'
                 )
                 sys.exit()
@@ -288,13 +322,13 @@ def _check_duplicates(imports_dicts: list) -> None:
                 logger.error(
                     'Найден повторный псевдоним в строке '
                     f'{import_dict['initial_string_index']}: '
-                    f'"{import_dict["initial_string"]}", '
+                    f'"{import_dict['initial_string']}", '
                     'исправьте проблему и перезапустите скрипт'
                 )
                 sys.exit()
 
 
-def _reorganize_order(imports_dicts: list) -> list:
+def _reorganize_order(imports_dicts_detailed: list) -> list:
     '''
     Реорганизует раздел импортов согласно PEP8
 
@@ -305,7 +339,7 @@ def _reorganize_order(imports_dicts: list) -> list:
     standard_and_builtin = []
     third_party = []
     local = []
-    for import_dict in imports_dicts:
+    for import_dict in imports_dicts_detailed:
         imported_module_name = import_dict['module_name']
         if imported_module_name in sys.stdlib_module_names or \
             imported_module_name in sys.builtin_module_names:
@@ -326,10 +360,15 @@ def _reorganize_order(imports_dicts: list) -> list:
                     local.append(import_dict)
             else:
                 local.append(import_dict)
-    imports_groups = (standard_and_builtin, third_party, local)
+    imports_groups = []
+    for imports_group in (standard_and_builtin, third_party, local):
+        if imports_group:
+            imports_groups.append(imports_group)
     reorganized_imports = []
     for idx, imports_group in enumerate(imports_groups):
         for imp in imports_group:
+            if imp['full_line_commentaries']:
+                reorganized_imports.extend(imp['full_line_commentaries'])
             reorganized_imports.append(imp['import_string'])
         if idx != len(imports_groups) - 1:
             # Разделение различных групп раздела импортов
@@ -341,10 +380,12 @@ def _reorganize_order(imports_dicts: list) -> list:
 if __name__ == '__main__':
     file_contents = open_file(args.filepath)
     file_lines = get_file_lines(file_contents)
-    import_lines_with_indices, \
+    import_lines_with_indices_and_comments, \
         start_index, end_index = \
-        get_import_lines_with_indices(file_lines)
-    updated_import_lines = update_import_lines(import_lines_with_indices)
+        get_import_lines_with_indices_and_comments(file_lines)
+    updated_import_lines = update_import_lines(
+        import_lines_with_indices_and_comments
+    )
     updated_file_lines = update_file_lines(
         file_lines,
         updated_import_lines,
