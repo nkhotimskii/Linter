@@ -1,0 +1,24 @@
+name: Tests
+
+on: push
+
+jobs:
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.13'
+
+      - name: Install Dependencies
+      - run: |
+          pip install -r test_requirements.txt
+
+      - name: Execute Script
+      - run: |
+          python -m unittest ./test_linter.py
