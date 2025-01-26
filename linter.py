@@ -86,10 +86,27 @@ def get_import_lines_with_indices_and_comments(file_lines: list) -> tuple:
     for idx, line in enumerate(file_lines):
         if not line.startswith('import') and \
             not line.startswith('from') and \
-            not line.strip().startswith('#') and \
+            not line.startswith('#') and \
             not line.strip() == '':
             other_section_start_index = idx
             break
+        if line.startswith('#'):
+            comment_index = idx
+            lines_after_comment = file_lines[comment_index:]
+            break_loop = False
+            for line in lines_after_comment:
+                if line.startswith('import') or \
+                    line.startswith('from'):
+                    break
+                elif line.startswith('#') or \
+                    line.strip() == '':
+                    continue
+                else:
+                    other_section_start_index = comment_index
+                    break_loop = True
+                    break
+            if break_loop:
+                break
     for idx, line in enumerate(
         reversed(file_lines[:other_section_start_index])
     ):
