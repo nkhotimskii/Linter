@@ -2,7 +2,7 @@ import argparse
 import collections
 import itertools
 
-import pandas
+import click
 
 
 print('Hello World!')

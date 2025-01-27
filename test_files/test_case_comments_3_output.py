@@ -2,8 +2,8 @@
 import sys
 import argparse
 
-import numpy
-import pandas
+import colorama
+import click
 
 import test_case_comments_2
 # Загрузили импорты

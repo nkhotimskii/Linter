@@ -1,8 +1,8 @@
 # Этот скрипт просто так загружает модули, а потом приветствует мир
 
-import pandas
+import click
 import itertools
-import numpy
+import colorama
 import test_case_comments
 import os
 

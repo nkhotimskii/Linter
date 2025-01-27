@@ -1,5 +1,5 @@
 import argparse
-import pandas
+import click
 import collections
 import itertools
 

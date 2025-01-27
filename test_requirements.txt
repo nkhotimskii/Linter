@@ -1,4 +1,4 @@
-pandas
+click
+colorama
+pyaml
 requests
-numpy
-scipy

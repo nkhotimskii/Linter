@@ -3,8 +3,8 @@
 
 
 import time
-import pandas
-import numpy
+import click
+import colorama
 import test_case_comments_3
 
 
