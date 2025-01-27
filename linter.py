@@ -78,10 +78,23 @@ def get_import_lines_with_indices_and_comments(file_lines: list) -> tuple:
     '''
     import_lines = []
     # Определяем, где начинается раздел импортов
+    # Если перед первым импортом несколько пустых строк, то считаем началом 
+    # вторую пустую строку (для последующего удаления лишних)
     for idx, line in enumerate(file_lines):
         if line.startswith('import') or line.startswith('from'):
-            start_index = idx
+            first_import = idx
             break
+    empty_lines_before_first_import = 0
+    for line in reversed(file_lines[:first_import]):
+        if line.strip() != '':
+            break
+        else:
+            empty_lines_before_first_import += 1
+    if empty_lines_before_first_import > 1:
+        # Оставляем одну пустую строку, если их несколько
+        start_index = first_import - empty_lines_before_first_import + 1
+    else:
+        start_index = first_import
     # Определяем, где заканчивается раздел импортов
     for idx, line in enumerate(file_lines):
         if not line.startswith('import') and \

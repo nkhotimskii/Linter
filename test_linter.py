@@ -37,6 +37,12 @@ class TestLinter(unittest.TestCase):
                     Path('test_files', 'test_file_5.py'),
                 'test_output_file': \
                     Path('test_files', 'test_file_5_output.py')
+            },
+            {
+                'test_input_file': \
+                    Path('test_files', 'test_file_6.py'),
+                'test_output_file': \
+                    Path('test_files', 'test_file_6_output.py')
             }
         ]
 
