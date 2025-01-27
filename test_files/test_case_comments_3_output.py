@@ -1,9 +1,11 @@
 # Загрузка импортов
 import sys
 import argparse
+
 import numpy
-import test_file_4
 import pandas
+
+import test_case_comments_2
 # Загрузили импорты
 
 

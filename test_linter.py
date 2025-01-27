@@ -1,4 +1,4 @@
-from pathlib import Path
+import os
 import unittest
 
 import linter
@@ -7,44 +7,29 @@ import linter
 class TestLinter(unittest.TestCase):
 
     def setUp(self):
-        self.test_files = [
-            {
-                'test_input_file': \
-                    Path('test_files', 'test_file_1.py'),
-                'test_output_file': \
-                    Path('test_files', 'test_file_1_output.py')
-            },
-            {
-                'test_input_file': \
-                    Path('test_files', 'test_file_2.py'),
-                'test_output_file': \
-                    Path('test_files', 'test_file_2_output.py')
-            },
-            {
-                'test_input_file': \
-                    Path('test_files', 'test_file_3.py'),
-                'test_output_file': \
-                    Path('test_files', 'test_file_3_output.py')
-            },
-            {
-                'test_input_file': \
-                    Path('test_files', 'test_file_4.py'),
-                'test_output_file': \
-                    Path('test_files', 'test_file_4_output.py')
-            },
-            {
-                'test_input_file': \
-                    Path('test_files', 'test_file_5.py'),
-                'test_output_file': \
-                    Path('test_files', 'test_file_5_output.py')
-            },
-            {
-                'test_input_file': \
-                    Path('test_files', 'test_file_6.py'),
-                'test_output_file': \
-                    Path('test_files', 'test_file_6_output.py')
-            }
-        ]
+        test_files_directory = 'test_files'
+        test_files_names = os.listdir(test_files_directory)
+        self.test_files = []
+        for test_file_name in test_files_names:
+            if not test_file_name.endswith('output'):
+                file_name_without_extension = test_file_name.split('.py')[0]
+                for test_file_name_to_compare in test_files_names:
+                    file_name_without_extension_to_compare = \
+                        test_file_name_to_compare.split('.py')[0]
+                    if file_name_without_extension + '_output' == \
+                        file_name_without_extension_to_compare:
+                        self.test_files.append(
+                            {
+                                'test_input_file': os.path.join(
+                                    test_files_directory, 
+                                    test_file_name
+                                ),
+                                'test_output_file': os.path.join(
+                                    test_files_directory, 
+                                    test_file_name_to_compare
+                                )
+                            }
+                        )
 
     def test_open_file(self):
         for test_file in self.test_files:
@@ -67,20 +52,24 @@ class TestLinter(unittest.TestCase):
             result = linter.get_import_lines_with_indices_and_comments(
                 file_lines
             )
-            self.assertIsInstance(result, tuple)
+            self.assertIsInstance(result, tuple | None)
 
     def test_update_import_lines(self):
         for test_file in self.test_files:
             test_input_file = test_file['test_input_file']
             contents = linter.open_file(test_input_file)
-            file_lines = linter.get_file_lines(contents)
-            import_lines_with_indices_and_comments, \
-                start_index, end_index = \
+            file_lines = linter.get_file_lines(contents)            
+            import_lines_with_indices_and_comments = \
                 linter.get_import_lines_with_indices_and_comments(
                     file_lines
                 )
-            result = linter.update_import_lines(
+            if import_lines_with_indices_and_comments:
+                import_lines_to_update, start_index, end_index = \
                 import_lines_with_indices_and_comments
+            else:
+                return
+            result = linter.update_import_lines(
+                import_lines_to_update
             )
             self.assertIsInstance(result, list)
 
@@ -89,13 +78,17 @@ class TestLinter(unittest.TestCase):
             test_input_file = test_file['test_input_file']
             contents = linter.open_file(test_input_file)
             file_lines = linter.get_file_lines(contents)
-            import_lines_with_indices_and_comments, \
-                start_index, end_index = \
+            import_lines_with_indices_and_comments = \
                 linter.get_import_lines_with_indices_and_comments(
                     file_lines
                 )
-            updated_import_lines = linter.update_import_lines(
+            if import_lines_with_indices_and_comments:
+                import_lines_to_update, start_index, end_index = \
                 import_lines_with_indices_and_comments
+            else:
+                return
+            updated_import_lines = linter.update_import_lines(
+                import_lines_to_update
             )
             result = linter.update_file_lines(
                 file_lines,
@@ -110,13 +103,17 @@ class TestLinter(unittest.TestCase):
             test_input_file = test_file['test_input_file']
             contents = linter.open_file(test_input_file)
             file_lines = linter.get_file_lines(contents)
-            import_lines_with_indices_and_comments, \
-                start_index, end_index = \
+            import_lines_with_indices_and_comments = \
                 linter.get_import_lines_with_indices_and_comments(
                     file_lines
                 )
-            updated_import_lines = linter.update_import_lines(
+            if import_lines_with_indices_and_comments:
+                import_lines_to_update, start_index, end_index = \
                 import_lines_with_indices_and_comments
+            else:
+                return
+            updated_import_lines = linter.update_import_lines(
+                import_lines_to_update
             )
             updated_file_lines = linter.update_file_lines(
                 file_lines,

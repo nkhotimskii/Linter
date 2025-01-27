@@ -6,9 +6,9 @@ import http
 # Загрузка модуля scipy
 import scipy
 
-# Загрузка модуля test_file_1
-import test_file_1
-import test_file_2
+# Загрузка модуля test_case_comments
+import test_case_comments
+import test_case_comments_2
 
 
 print('Hello World!')

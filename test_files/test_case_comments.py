@@ -2,11 +2,11 @@
 import email
 # Загрузка модуля http
 import http
-# Загрузка модуля test_file_1
-import test_file_1
+# Загрузка модуля test_case_comments
+import test_case_comments
 # Загрузка модуля scipy
 import scipy
-import test_file_2
+import test_case_comments_2
 
 
 print('Hello World!')

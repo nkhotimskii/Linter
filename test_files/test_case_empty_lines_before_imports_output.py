@@ -5,7 +5,7 @@ import time
 import pandas
 import numpy
 
-import test_file_5
+import test_case_comments_3
 
 
 print('Hello World!')

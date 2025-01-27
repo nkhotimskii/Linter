@@ -67,7 +67,7 @@ def get_file_lines(contents: str) -> list:
     return contents.splitlines()
 
 
-def get_import_lines_with_indices_and_comments(file_lines: list) -> tuple:
+def get_import_lines_with_indices_and_comments(file_lines: list) -> tuple | None:
     '''
     Возвращает список словарей, где каждый словарь содержит строку импорта, 
     соответствующие этой строке комментарии (кроме строчных комментариев), 
@@ -84,6 +84,8 @@ def get_import_lines_with_indices_and_comments(file_lines: list) -> tuple:
         if line.startswith('import') or line.startswith('from'):
             first_import = idx
             break
+    if not 'first_import' in locals():
+        return
     empty_lines_before_first_import = 0
     for line in reversed(file_lines[:first_import]):
         if line.strip() != '':
@@ -410,11 +412,16 @@ def _reorganize_order(imports_dicts_detailed: list) -> list:
 if __name__ == '__main__':
     file_contents = open_file(args.filepath)
     file_lines = get_file_lines(file_contents)
-    import_lines_with_indices_and_comments, \
-        start_index, end_index = \
+    import_lines_with_indices_and_comments = \
         get_import_lines_with_indices_and_comments(file_lines)
-    updated_import_lines = update_import_lines(
+    if import_lines_with_indices_and_comments:
+        import_lines_to_update, start_index, end_index = \
         import_lines_with_indices_and_comments
+    else:
+        logger.warning('Раздела импортов не обнаружено')
+        sys.exit()
+    updated_import_lines = update_import_lines(
+        import_lines_to_update
     )
     updated_file_lines = update_file_lines(
         file_lines,
