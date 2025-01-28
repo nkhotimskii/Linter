@@ -7,29 +7,35 @@ import linter
 class TestLinter(unittest.TestCase):
 
     def setUp(self):
-        test_files_directory = 'test_files'
-        test_files_names = os.listdir(test_files_directory)
+        test_files_directory = 'tests'
         self.test_files = []
-        for test_file_name in test_files_names:
-            if not test_file_name.endswith('output'):
-                file_name_without_extension = test_file_name.split('.py')[0]
-                for test_file_name_to_compare in test_files_names:
-                    file_name_without_extension_to_compare = \
-                        test_file_name_to_compare.split('.py')[0]
-                    if file_name_without_extension + '_output' == \
-                        file_name_without_extension_to_compare:
-                        self.test_files.append(
-                            {
-                                'test_input_file': os.path.join(
-                                    test_files_directory, 
-                                    test_file_name
-                                ),
-                                'test_output_file': os.path.join(
-                                    test_files_directory, 
-                                    test_file_name_to_compare
-                                )
-                            }
-                        )
+        for subdirectory in os.listdir(test_files_directory):
+            test_files_names = os.listdir(os.path.join(
+                test_files_directory,
+                subdirectory
+            ))
+            for test_file_name in test_files_names:
+                if not test_file_name.endswith('output'):
+                    file_name_without_extension = test_file_name.split('.py')[0]
+                    for test_file_name_to_compare in test_files_names:
+                        file_name_without_extension_to_compare = \
+                            test_file_name_to_compare.split('.py')[0]
+                        if file_name_without_extension + '_output' == \
+                            file_name_without_extension_to_compare:
+                            self.test_files.append(
+                                {
+                                    'test_input_file': os.path.join(
+                                        test_files_directory, 
+                                        subdirectory,
+                                        test_file_name
+                                    ),
+                                    'test_output_file': os.path.join(
+                                        test_files_directory,
+                                        subdirectory, 
+                                        test_file_name_to_compare
+                                    )
+                                }
+                            )
 
     def test_open_file(self):
         for test_file in self.test_files:
