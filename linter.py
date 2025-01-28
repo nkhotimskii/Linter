@@ -77,57 +77,10 @@ def get_import_lines_with_indices_and_comments(file_lines: list) -> tuple | None
     раздела импортов в списке строк содержимого
     '''
     import_lines = []
-    # Определяем, где начинается раздел импортов
-    # Если перед первым импортом несколько пустых строк, то считаем началом 
-    # вторую пустую строку (для последующего удаления лишних)
-    for idx, line in enumerate(file_lines):
-        if line.startswith('import') or line.startswith('from'):
-            first_import = idx
-            break
-    if not 'first_import' in locals():
+    start_index = _get_import_section_start_index(file_lines)
+    if not isinstance(start_index, int):
         return
-    empty_lines_before_first_import = 0
-    for line in reversed(file_lines[:first_import]):
-        if line.strip() != '':
-            break
-        else:
-            empty_lines_before_first_import += 1
-    if empty_lines_before_first_import > 1:
-        # Оставляем одну пустую строку, если их несколько
-        start_index = first_import - empty_lines_before_first_import + 1
-    else:
-        start_index = first_import
-    # Определяем, где заканчивается раздел импортов
-    for idx, line in enumerate(file_lines):
-        if not line.startswith('import') and \
-            not line.startswith('from') and \
-            not line.startswith('#') and \
-            not line.strip() == '':
-            other_section_start_index = idx
-            break
-        if line.startswith('#'):
-            comment_index = idx
-            lines_after_comment = file_lines[comment_index:]
-            break_loop = False
-            for line in lines_after_comment:
-                if line.startswith('import') or \
-                    line.startswith('from'):
-                    break
-                elif line.startswith('#') or \
-                    line.strip() == '':
-                    continue
-                else:
-                    other_section_start_index = comment_index
-                    break_loop = True
-                    break
-            if break_loop:
-                break
-    for idx, line in enumerate(
-        reversed(file_lines[:other_section_start_index])
-    ):
-        if line.strip() != '':
-            end_index = other_section_start_index - idx
-            break
+    end_index = _get_import_section_end_index(file_lines)   
     # Выделяем раздел импортов
     import_section = file_lines[start_index:end_index]
 
@@ -194,6 +147,90 @@ def update_file(filepath: str, new_file_lines: list) -> None:
     new_file_lines_str = '\n'.join(new_file_lines)
     with open(filepath, 'w', encoding='utf-8') as file:
         file.write(new_file_lines_str)
+
+
+def _get_import_section_start_index(file_lines: list) -> int | None:
+    '''
+    Возвращает индекс начала раздела импортов или ничего, если импортов нет
+    '''
+    # Определяем, где начинается раздел импортов
+    # Если перед первым импортом несколько пустых строк, то считаем началом 
+    # вторую пустую строку (для последующего удаления лишних)
+    for idx, line in enumerate(file_lines):
+        if line.startswith('import') or line.startswith('from'):
+            first_import = idx
+            break
+    if not 'first_import' in locals():
+        return
+    empty_lines_before_first_import = 0
+    for line in reversed(file_lines[:first_import]):
+        if line.strip() != '':
+            break
+        else:
+            empty_lines_before_first_import += 1
+    if empty_lines_before_first_import > 1:
+        # Оставляем одну пустую строку, если их несколько
+        start_index = first_import - empty_lines_before_first_import + 1
+    else:
+        start_index = first_import
+    return start_index
+
+
+def _get_import_section_end_index(file_lines: list) -> int:
+    '''
+    Возвращает индекс конца раздела импортов. Влючает лишние пустые строки 
+    после импортов для их последующего удаления
+    '''
+    for idx, line in enumerate(file_lines):
+        if not line.startswith('import') and \
+            not line.startswith('from') and \
+            not line.startswith('#') and \
+            not line.strip() == '':
+            other_section_start_index = idx
+            break
+        if line.startswith('#'):
+            comment_index = idx
+            lines_after_comment = file_lines[comment_index:]
+            break_main_loop = False
+            for line in lines_after_comment:
+                if line.startswith('import') or \
+                    line.startswith('from'):
+                    break
+                elif line.startswith('#') or \
+                    line.strip() == '':
+                    continue
+                else:
+                    other_section_start_index = comment_index
+                    break_main_loop = True
+                    break
+            if break_main_loop:
+                break
+    empty_lines_after_imports = 0
+    for idx, line in enumerate(
+        reversed(file_lines[:other_section_start_index])
+    ):
+        if line.strip() != '':
+            last_import = other_section_start_index - idx
+            break
+        else:
+            empty_lines_after_imports += 1
+    if empty_lines_after_imports:
+        other_section_start_line = file_lines[other_section_start_index]
+        if other_section_start_line.startswith('#') or \
+            other_section_start_line.startswith('"""') or \
+            other_section_start_line.startswith("'''"):
+            if empty_lines_after_imports > 1:
+                end_index = other_section_start_index - 1
+            else:
+                end_index = last_import
+        else:
+            if empty_lines_after_imports > 2:
+                end_index = other_section_start_index - 2
+            else:
+                end_index = last_import
+    else:
+        end_index = last_import
+    return end_index
 
 
 def _get_imports_dicts_detailed(

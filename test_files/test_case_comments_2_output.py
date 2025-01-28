@@ -8,6 +8,5 @@ import colorama
 
 import test_case_comments
 
-
 # Начало кода
 print('Hello World!')
