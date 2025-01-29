@@ -3,7 +3,7 @@
 import click
 import itertools
 import colorama
-import test_case_comments
+import test_case_imports_comments
 import os
 
 

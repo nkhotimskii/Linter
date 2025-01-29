@@ -6,7 +6,7 @@ import os
 import click
 import colorama
 
-import test_case_comments
+import test_case_imports_comments
 
 # Начало кода
 print('Hello World!')

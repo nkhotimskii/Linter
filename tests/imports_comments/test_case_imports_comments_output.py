@@ -6,9 +6,9 @@ import http
 # Загрузка модуля pyaml
 import pyaml
 
-# Загрузка модуля test_case_comments
-import test_case_comments
-import test_case_comments_2
+# Загрузка модуля test_case_imports_comments
+import test_case_imports_comments
+import test_case_imports_comments_2
 
 
 print('Hello World!')

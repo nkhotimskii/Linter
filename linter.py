@@ -67,7 +67,9 @@ def get_file_lines(contents: str) -> list:
     return contents.splitlines()
 
 
-def get_import_lines_with_indices_and_comments(file_lines: list) -> tuple | None:
+def get_import_lines_with_indices_and_comments(
+        file_lines: list
+    ) -> tuple | None:
     '''
     Возвращает список словарей, где каждый словарь содержит строку импорта, 
     соответствующие этой строке комментарии (кроме строчных комментариев), 
@@ -80,10 +82,10 @@ def get_import_lines_with_indices_and_comments(file_lines: list) -> tuple | None
     start_index = _get_import_section_start_index(file_lines)
     if not isinstance(start_index, int):
         return
-    end_index = _get_import_section_end_index(file_lines)   
+    end_index = _get_import_section_end_index(file_lines)
     # Выделяем раздел импортов
     import_section = file_lines[start_index:end_index]
-
+    
     # Создаём список словарей с импортами и номерами строк этих импортов, 
     # а также комментариями к этим импортам
     def get_full_line_commentaries(line_index: int) -> list:
@@ -137,6 +139,13 @@ def update_file_lines(
     Обновляет исходные данные файла
     '''
     file_lines[file_lines_start_index:file_lines_end_index] = new_lines
+    updated_code_start_index = file_lines_start_index
+    updated_code_end_index = file_lines_start_index + len(new_lines)
+    file_lines = _add_spacing(
+        file_lines,
+        updated_code_start_index,
+        updated_code_end_index
+    )
     return file_lines
 
 
@@ -149,37 +158,79 @@ def update_file(filepath: str, new_file_lines: list) -> None:
         file.write(new_file_lines_str)
 
 
-def _get_import_section_start_index(file_lines: list) -> int | None:
+def _add_spacing(
+        file_lines: list,
+        updated_code_start_index: int,
+        updated_code_end_index: int
+    ) -> list:
     '''
-    Возвращает индекс начала раздела импортов или ничего, если импортов нет
+    Возвращает строки раздела импортов с правильным отступом после него
     '''
-    # Определяем, где начинается раздел импортов
-    # Если перед первым импортом несколько пустых строк, то считаем началом 
-    # вторую пустую строку (для последующего удаления лишних)
-    for idx, line in enumerate(file_lines):
-        if line.startswith('import') or line.startswith('from'):
-            first_import = idx
-            break
-    if not 'first_import' in locals():
-        return
+    # Ставим необходимые пустые строки после раздела импортов
+    empty_lines_after_imports = 0
+    for idx, line in enumerate(file_lines[updated_code_end_index:]):
+        if line.strip() == '':
+            empty_lines_after_imports += 1
+        else:
+            if line.startswith('#') or \
+                line.startswith('"""') or \
+                line.startswith("'''"):
+                if not empty_lines_after_imports:
+                    file_lines.insert(
+                        updated_code_end_index,
+                        ''
+                    )
+                elif empty_lines_after_imports > 1:
+                    for _ in range(empty_lines_after_imports - 1):
+                        file_lines.pop(updated_code_end_index)
+                break
+            else:
+                if empty_lines_after_imports < 2:
+                    for _ in range(2 - empty_lines_after_imports):
+                        file_lines.insert(
+                            updated_code_end_index,
+                            ''
+                        )
+                elif empty_lines_after_imports > 2:
+                    for _ in range(empty_lines_after_imports - 2):
+                        file_lines.pop(updated_code_end_index)
+                break
+    # Ставим необходимый отступ (если необходимо) перед разделом импортов
     empty_lines_before_first_import = 0
-    for line in reversed(file_lines[:first_import]):
+    for line in reversed(file_lines[:updated_code_start_index]):
         if line.strip() != '':
             break
         else:
             empty_lines_before_first_import += 1
     if empty_lines_before_first_import > 1:
         # Оставляем одну пустую строку, если их несколько
-        start_index = first_import - empty_lines_before_first_import + 1
-    else:
-        start_index = first_import
+        for _ in range(empty_lines_before_first_import-1):
+            file_lines.pop(
+                updated_code_start_index-empty_lines_before_first_import
+            )
+    return file_lines
+
+
+def _get_import_section_start_index(file_lines: list) -> int | None:
+    '''
+    Возвращает индекс начала раздела импортов или ничего, если импортов нет
+    '''
+    # Определяем, где начинается раздел импортов 
+    # Если перед первым импортом несколько пустых строк, то считаем началом  
+    # вторую пустую строку (для последующего удаления лишних)
+    for idx, line in enumerate(file_lines):
+        if line.startswith('import') or line.startswith('from'):
+            start_index = idx
+            break
+    if not 'start_index' in locals():
+        return
     return start_index
 
 
 def _get_import_section_end_index(file_lines: list) -> int:
     '''
-    Возвращает индекс конца раздела импортов. Влючает лишние пустые строки 
-    после импортов для их последующего удаления
+    Возвращает индекс конца раздела импортов (добавляется один к
+    значению для корректного слайсинга)
     '''
     for idx, line in enumerate(file_lines):
         if not line.startswith('import') and \
@@ -205,32 +256,71 @@ def _get_import_section_end_index(file_lines: list) -> int:
                     break
             if break_main_loop:
                 break
-    empty_lines_after_imports = 0
-    for idx, line in enumerate(
-        reversed(file_lines[:other_section_start_index])
-    ):
-        if line.strip() != '':
-            last_import = other_section_start_index - idx
+    for idx, line in enumerate(reversed(
+        file_lines[:other_section_start_index]
+    )):
+        if line.startswith('import') or \
+            line.startswith('from'):
+            end_index = other_section_start_index - idx
             break
-        else:
-            empty_lines_after_imports += 1
-    if empty_lines_after_imports:
-        other_section_start_line = file_lines[other_section_start_index]
-        if other_section_start_line.startswith('#') or \
-            other_section_start_line.startswith('"""') or \
-            other_section_start_line.startswith("'''"):
-            if empty_lines_after_imports > 1:
-                end_index = other_section_start_index - 1
-            else:
-                end_index = last_import
-        else:
-            if empty_lines_after_imports > 2:
-                end_index = other_section_start_index - 2
-            else:
-                end_index = last_import
-    else:
-        end_index = last_import
     return end_index
+
+
+# def _get_import_section_end_index(file_lines: list) -> int:
+#     '''
+#     Возвращает индекс конца раздела импортов. Влючает лишние пустые строки 
+#     после импортов для их последующего удаления
+#     '''
+#     for idx, line in enumerate(file_lines):
+#         if not line.startswith('import') and \
+#             not line.startswith('from') and \
+#             not line.startswith('#') and \
+#             not line.strip() == '':
+#             other_section_start_index = idx
+#             break
+#         if line.startswith('#'):
+#             comment_index = idx
+#             lines_after_comment = file_lines[comment_index:]
+#             break_main_loop = False
+#             for line in lines_after_comment:
+#                 if line.startswith('import') or \
+#                     line.startswith('from'):
+#                     break
+#                 elif line.startswith('#') or \
+#                     line.strip() == '':
+#                     continue
+#                 else:
+#                     other_section_start_index = comment_index
+#                     break_main_loop = True
+#                     break
+#             if break_main_loop:
+#                 break
+#     empty_lines_after_imports = 0
+#     for idx, line in enumerate(
+#         reversed(file_lines[:other_section_start_index])
+#     ):
+#         if line.strip() != '':
+#             last_import = other_section_start_index - idx
+#             break
+#         else:
+#             empty_lines_after_imports += 1
+#     if empty_lines_after_imports:
+#         other_section_start_line = file_lines[other_section_start_index]
+#         if other_section_start_line.startswith('#') or \
+#             other_section_start_line.startswith('"""') or \
+#             other_section_start_line.startswith("'''"):
+#             if empty_lines_after_imports > 1:
+#                 end_index = other_section_start_index - 1
+#             else:
+#                 end_index = last_import
+#         else:
+#             if empty_lines_after_imports > 2:
+#                 end_index = other_section_start_index - 2
+#             else:
+#                 end_index = last_import
+#     else:
+#         end_index = last_import
+#     return end_index
 
 
 def _get_imports_dicts_detailed(
