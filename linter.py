@@ -266,63 +266,6 @@ def _get_import_section_end_index(file_lines: list) -> int:
     return end_index
 
 
-# def _get_import_section_end_index(file_lines: list) -> int:
-#     '''
-#     Возвращает индекс конца раздела импортов. Влючает лишние пустые строки 
-#     после импортов для их последующего удаления
-#     '''
-#     for idx, line in enumerate(file_lines):
-#         if not line.startswith('import') and \
-#             not line.startswith('from') and \
-#             not line.startswith('#') and \
-#             not line.strip() == '':
-#             other_section_start_index = idx
-#             break
-#         if line.startswith('#'):
-#             comment_index = idx
-#             lines_after_comment = file_lines[comment_index:]
-#             break_main_loop = False
-#             for line in lines_after_comment:
-#                 if line.startswith('import') or \
-#                     line.startswith('from'):
-#                     break
-#                 elif line.startswith('#') or \
-#                     line.strip() == '':
-#                     continue
-#                 else:
-#                     other_section_start_index = comment_index
-#                     break_main_loop = True
-#                     break
-#             if break_main_loop:
-#                 break
-#     empty_lines_after_imports = 0
-#     for idx, line in enumerate(
-#         reversed(file_lines[:other_section_start_index])
-#     ):
-#         if line.strip() != '':
-#             last_import = other_section_start_index - idx
-#             break
-#         else:
-#             empty_lines_after_imports += 1
-#     if empty_lines_after_imports:
-#         other_section_start_line = file_lines[other_section_start_index]
-#         if other_section_start_line.startswith('#') or \
-#             other_section_start_line.startswith('"""') or \
-#             other_section_start_line.startswith("'''"):
-#             if empty_lines_after_imports > 1:
-#                 end_index = other_section_start_index - 1
-#             else:
-#                 end_index = last_import
-#         else:
-#             if empty_lines_after_imports > 2:
-#                 end_index = other_section_start_index - 2
-#             else:
-#                 end_index = last_import
-#     else:
-#         end_index = last_import
-#     return end_index
-
-
 def _get_imports_dicts_detailed(
     import_lines_with_indices_and_comments: list
 ) -> list:
@@ -351,13 +294,60 @@ def _get_imports_dicts_detailed(
             module_alias = import_string_match.group('module_alias')
             another_module = import_string_match.group('another_module')
             module_var2 = import_string_match.group('module_var2')
+            inline_comment = import_string_match.group('inline_comment')
+            if inline_comment:
+                spaces_before_inline_comment = 0
+                for char in inline_comment:
+                    if char == ' ':
+                        spaces_before_inline_comment += 1
+                    else:
+                        if spaces_before_inline_comment != 2:
+                            formatted_inline_comment = '  ' + \
+                                inline_comment[spaces_before_inline_comment:]                            
+                        else:
+                            formatted_inline_comment = inline_comment
+                        break
+                # Проверяем, если стоит только один хэштэг
+                number_of_hashtags = 0
+                for char in formatted_inline_comment[3:]:
+                    if char == '#':
+                        number_of_hashtags += 1
+                    else:
+                        formatted_inline_comment = \
+                            formatted_inline_comment[:3] + \
+                            formatted_inline_comment[
+                                (3 + number_of_hashtags):
+                            ]
+                        break
+                # Ставим нужное кол-во пробелов между знаком "#" и 
+                # текстом комментария
+                spaces_before_comment_text = 0                
+                for char in formatted_inline_comment[3:]:
+                    if char == ' ':
+                        spaces_before_comment_text += 1
+                    else:
+                        formatted_inline_comment = \
+                            formatted_inline_comment[:3] + ' ' + \
+                            formatted_inline_comment[
+                                (3 + spaces_before_comment_text):
+                            ]
+                        break
             full_line_commentaries = \
                 import_line_with_index_and_comment['full_line_commentaries']
             if another_module:
                 modules_str = line.split('import ')[1]
-                modules_with_aliases = modules_str.split(', ')
+                if inline_comment:
+                    modules_with_aliases = modules_str[
+                        :-(len(inline_comment))
+                    ].split(', ')
+                else:
+                    modules_with_aliases = modules_str.split(', ')
                 for idx, module_with_alias in enumerate(modules_with_aliases):
-                    new_line = 'import ' + module_with_alias
+                    if inline_comment:
+                        new_line = 'import ' + module_with_alias + \
+                            formatted_inline_comment
+                    else:
+                        new_line = 'import ' + module_with_alias
                     try:
                         import_full_name, import_alias = \
                         module_with_alias.split(' as ')
@@ -407,11 +397,18 @@ def _get_imports_dicts_detailed(
                             'import_name': import_name,
                             'import_alias': import_alias
                         }
-                    )
+                    )        
+            if inline_comment:
+                new_line = line.replace(
+                    inline_comment,
+                    formatted_inline_comment
+                )
+            else:
+                new_line = line
             imports_dicts_detailed.append({
                 'initial_string': line,
                 'initial_string_index': line_index,
-                'import_string': line,
+                'import_string': new_line,
                 'module_name': module_name,
                 'full_line_commentaries': full_line_commentaries,
                 'import': imported
@@ -437,7 +434,8 @@ def _get_import_string_regex() -> str:
         r'import\s(?P<subentity>(\w+|\*))' \
         r'(?:\sas\s(?P<subentity_alias>\w+))?' \
         r'(\,\s(?P<another_subentity>\w+)' \
-        r'(?:\sas\s(?P<another_subentity_alias>\w+))?)*))$'
+        r'(?:\sas\s(?P<another_subentity_alias>\w+))?)*))' \
+        r'(?P<inline_comment>(\s+)?\#.+)?$'
 
 
 def _check_duplicates(imports_dicts: list) -> None:
