@@ -7,7 +7,6 @@ from pathlib import Path
 import re
 import sys
 
-
 # Создаём класс для присваивания цветов логам
 class ColourFormatter(logging.Formatter):
     COLOURS = {
