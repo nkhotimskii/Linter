@@ -1,8 +1,8 @@
-import os
 import math
+import os
 
-import requests
 import colorama
+import requests
 
 import test_case_comments
 

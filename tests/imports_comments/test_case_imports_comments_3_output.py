@@ -1,9 +1,9 @@
 # Загрузка импортов
-import sys
 import argparse
+import sys
 
-import colorama
 import click
+import colorama
 
 import test_case_imports_comments_2
 

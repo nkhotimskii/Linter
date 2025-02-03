@@ -519,7 +519,20 @@ def _reorganize_order(imports_dicts_detailed: list) -> list:
     imports_groups = []
     for imports_group in (standard_and_builtin, third_party, local):
         if imports_group:
-            imports_groups.append(imports_group)
+            # Сортируем в алфавитном порядке каждую группу импортов
+            imports_groups_sorted = []
+            modules = sorted([
+                import_dict['module_name'] for import_dict \
+                    in imports_group
+            ])
+            for module in modules:
+                imports_groups_sorted.extend(
+                    [
+                        import_dict for import_dict in imports_group
+                            if import_dict['module_name'] == module
+                    ]
+                )
+            imports_groups.append(imports_groups_sorted)
     reorganized_imports = []
     for idx, imports_group in enumerate(imports_groups):
         for imp in imports_group:
