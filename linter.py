@@ -520,18 +520,36 @@ def _reorganize_order(imports_dicts_detailed: list) -> list:
     for imports_group in (standard_and_builtin, third_party, local):
         if imports_group:
             # Сортируем в алфавитном порядке каждую группу импортов
-            imports_groups_sorted = []
-            modules = sorted([
-                import_dict['module_name'] for import_dict \
-                    in imports_group
-            ])
-            for module in modules:
-                imports_groups_sorted.extend(
-                    [
-                        import_dict for import_dict in imports_group
-                            if import_dict['module_name'] == module
-                    ]
+            imports_group_sorted_items = []
+            # Сортировка выгружаемых элементов, если строка содержит 
+            # больше одного выгружаемого элемента
+            imports_group_sorted_subitems = []
+            for imports_group_import in imports_group:
+                if len(imports_group_import['import']) > 1:
+                    imports_group_import['import'] = sorted(
+                        imports_group_import['import'],
+                        key=lambda x: x['import_name']
+                    )
+                    imports_group_import_sorted_items = [
+                        imp['import_name'] for imp in \
+                            imports_group_import['import']
+                    ] 
+                    imports_group_import['import_string'] = \
+                        'from ' + imports_group_import['module_name'] + ' ' \
+                            'import ' + ', '.join(
+                                imports_group_import_sorted_items
+                            )
+                imports_group_sorted_subitems.append(
+                    imports_group_import
                 )
+            imports_groups_sorted = sorted(
+                imports_group_sorted_subitems,
+                key=lambda x: (
+                    x['module_name'],
+                    'from' in x.get('initial_string'),
+                    x['import'][0]['import_name']
+                )
+            )
             imports_groups.append(imports_groups_sorted)
     reorganized_imports = []
     for idx, imports_group in enumerate(imports_groups):
