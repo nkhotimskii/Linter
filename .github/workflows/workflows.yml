@@ -41,7 +41,7 @@ jobs:
 
       - name: Execute Script
         run: |
-          python linter.py linter.py
+          python linter.py linter.py -i -ll
 
   check_test_linter:
     name: Check Test Linter
@@ -58,7 +58,7 @@ jobs:
 
       - name: Execute Script
         run: |
-          python linter.py test_linter.py
+          python linter.py test_linter.py -i -ll
 
   commit_changes:
     name: Commit and Push Changes
