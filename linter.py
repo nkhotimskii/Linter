@@ -24,13 +24,10 @@ class ColourFormatter(logging.Formatter):
 
 # Выставляются настройки логирования
 logger = logging.getLogger('linter')
-
+logger.setLevel(logging.INFO)
 console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.INFO)
-
 formatter = ColourFormatter('%(message)s')
 console_handler.setFormatter(formatter)
-
 logger.addHandler(console_handler)
 
 
@@ -41,6 +38,23 @@ parser = ArgumentParser(
     description='Simple Python linter'
 )
 parser.add_argument('filepath')
+parser.add_argument(
+    '-i', 
+    '--imports',
+    default=False, 
+    action='store_true',
+    help='Реорганизация импортов'
+)
+parser.add_argument(
+    '-ll',
+    '--lines_lengths',
+    const=79,
+    nargs='?',
+    action='store',
+    help='Проверка длины строк. Можно указать максимально допустимое '
+    'значение (по умолчанию 79). Будут выданы строки с длиной, которая '
+    'превышает указанное значение'
+)
 args = parser.parse_args()
 
 
@@ -64,6 +78,24 @@ def get_file_lines(contents: str) -> list:
     Возвращает список строк содержимого
     '''
     return contents.splitlines()
+
+
+def check_lines_lenghts(
+    file_lines: list,
+    max_length: int = 79 # Согласно PEP8, максимально допустимая длина строки
+) -> None:
+    '''
+    Проверяет длину строк
+    '''
+    logger.info(
+        'Проверка, есть ли строки, которые '
+        f'содержат более {max_length} знаков'
+    )
+    for idx, line in enumerate(file_lines):        
+        if len(line) > max_length:
+            logger.error(
+                f'Строка {idx + 1}: "{line.lstrip()[:50]}..." '
+            )
 
 
 def get_import_lines_with_indices_and_comments(
@@ -567,21 +599,25 @@ def _reorganize_order(imports_dicts_detailed: list) -> list:
 if __name__ == '__main__':
     file_contents = open_file(args.filepath)
     file_lines = get_file_lines(file_contents)
-    import_lines_with_indices_and_comments = \
-        get_import_lines_with_indices_and_comments(file_lines)
-    if import_lines_with_indices_and_comments:
-        import_lines_to_update, start_index, end_index = \
-        import_lines_with_indices_and_comments
-    else:
-        logger.warning('Раздела импортов не обнаружено')
-        sys.exit()
-    updated_import_lines = update_import_lines(
-        import_lines_to_update
-    )
-    updated_file_lines = update_file_lines(
-        file_lines,
-        updated_import_lines,
-        start_index,
-        end_index
-    )
-    update_file(args.filepath, updated_file_lines)
+    if args.lines_lengths:
+        max_line_length = int(args.lines_lengths)
+        check_lines_lenghts(file_lines, max_line_length)
+    if args.imports:
+        import_lines_with_indices_and_comments = \
+            get_import_lines_with_indices_and_comments(file_lines)
+        if import_lines_with_indices_and_comments:
+            import_lines_to_update, start_index, end_index = \
+            import_lines_with_indices_and_comments
+        else:
+            logger.warning('Раздела импортов не обнаружено')
+            sys.exit()
+        updated_import_lines = update_import_lines(
+            import_lines_to_update
+        )
+        updated_file_lines = update_file_lines(
+            file_lines,
+            updated_import_lines,
+            start_index,
+            end_index
+        )
+        update_file(args.filepath, updated_file_lines)
