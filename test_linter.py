@@ -47,14 +47,16 @@ class TestLinter(unittest.TestCase):
         for test_file in self.test_files:
             test_input_file = test_file['test_input_file']
             contents = linter.open_file(test_input_file)
-            result = linter.get_file_lines(contents)
+            code = linter.Code(contents)
+            result = code.initial_lines
             self.assertIsInstance(result, list)
 
     def test_get_import_lines_with_indices_and_comments(self):
         for test_file in self.test_files:
             test_input_file = test_file['test_input_file']
             contents = linter.open_file(test_input_file)
-            file_lines = linter.get_file_lines(contents)
+            code = linter.Code(contents)
+            file_lines = code.initial_lines
             result = linter.get_import_lines_with_indices_and_comments(
                 file_lines
             )
@@ -64,7 +66,8 @@ class TestLinter(unittest.TestCase):
         for test_file in self.test_files:
             test_input_file = test_file['test_input_file']
             contents = linter.open_file(test_input_file)
-            file_lines = linter.get_file_lines(contents)            
+            code = linter.Code(contents)
+            file_lines = code.initial_lines       
             import_lines_with_indices_and_comments = \
                 linter.get_import_lines_with_indices_and_comments(
                     file_lines
@@ -83,7 +86,8 @@ class TestLinter(unittest.TestCase):
         for test_file in self.test_files:
             test_input_file = test_file['test_input_file']
             contents = linter.open_file(test_input_file)
-            file_lines = linter.get_file_lines(contents)
+            code = linter.Code(contents)
+            file_lines = code.initial_lines
             import_lines_with_indices_and_comments = \
                 linter.get_import_lines_with_indices_and_comments(
                     file_lines
@@ -108,7 +112,8 @@ class TestLinter(unittest.TestCase):
         for test_file in self.test_files:
             test_input_file = test_file['test_input_file']
             contents = linter.open_file(test_input_file)
-            file_lines = linter.get_file_lines(contents)
+            code = linter.Code(contents)
+            file_lines = code.initial_lines
             import_lines_with_indices_and_comments = \
                 linter.get_import_lines_with_indices_and_comments(
                     file_lines
