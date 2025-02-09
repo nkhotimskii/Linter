@@ -58,6 +58,32 @@ parser.add_argument(
 args = parser.parse_args()
 
 
+class Code():
+    '''
+    Класс, представляющий из себя код файла
+    '''
+
+    def __init__(self, file_content: str) -> None:
+        '''
+        Инициализирует класс с параметром содержимого файла
+        '''
+        self._content: str = file_content
+        self._initial_lines: list[str] = self._get_initial_lines()
+
+    @property
+    def initial_lines(self) -> list[str]:
+        '''
+        Исходные строки кода
+        '''
+        return self._initial_lines
+    
+    def _get_initial_lines(self) -> list[str]:
+        '''
+        Возвращает список строк кода
+        '''
+        return self._content.splitlines()
+
+
 def open_file(filepath: str | Path) -> str:
     '''
     Возвращает содержимое файла
@@ -71,13 +97,6 @@ def open_file(filepath: str | Path) -> str:
     except FileNotFoundError:
         logger.error(f'Неправильный путь к файлу: {filepath}')
         sys.exit()
-
-
-def get_file_lines(contents: str) -> list:
-    '''
-    Возвращает список строк содержимого
-    '''
-    return contents.splitlines()
 
 
 def check_lines_lenghts(
@@ -597,8 +616,10 @@ def _reorganize_order(imports_dicts_detailed: list) -> list:
 
 
 if __name__ == '__main__':
-    file_contents = open_file(args.filepath)
-    file_lines = get_file_lines(file_contents)
+    filepath = args.filepath
+    file_contents = open_file(filepath)
+    code = Code(file_contents)
+    file_lines = code.initial_lines
     if args.lines_lengths:
         max_line_length = int(args.lines_lengths)
         check_lines_lenghts(file_lines, max_line_length)
